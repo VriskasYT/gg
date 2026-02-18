@@ -1,0 +1,1158 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+<title>Vriska's Clicker</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+  :root {
+    --bg: #ffffff;
+    --bg2: #f2f2f7;
+    --bg3: #e5e5ea;
+    --card: #ffffff;
+    --text: #000000;
+    --text2: #8e8e93;
+    --accent: #007aff;
+    --accent2: #5856d6;
+    --green: #34c759;
+    --orange: #ff9500;
+    --red: #ff3b30;
+    --pink: #ff2d55;
+    --border: rgba(0,0,0,0.08);
+    --shadow: 0 2px 16px rgba(0,0,0,0.08);
+    --tab-bg: rgba(242,242,247,0.92);
+    --energy-bg: #e5e5ea;
+    --coin-glow: rgba(255,149,0,0.3);
+  }
+  .dark {
+    --bg: #000000;
+    --bg2: #1c1c1e;
+    --bg3: #2c2c2e;
+    --card: #1c1c1e;
+    --text: #ffffff;
+    --text2: #8e8e93;
+    --border: rgba(255,255,255,0.08);
+    --shadow: 0 2px 16px rgba(0,0,0,0.3);
+    --tab-bg: rgba(28,28,30,0.92);
+    --energy-bg: #2c2c2e;
+    --coin-glow: rgba(255,149,0,0.2);
+  }
+  * {
+    margin:0;padding:0;box-sizing:border-box;
+    -webkit-tap-highlight-color:transparent;
+    -webkit-user-select:none;user-select:none;
+  }
+  body {
+    font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+    background:var(--bg);color:var(--text);
+    overflow:hidden;height:100vh;height:100dvh;
+    transition:background .3s,color .3s;
+  }
+  .app {display:flex;flex-direction:column;height:100vh;height:100dvh;overflow:hidden;}
+
+  .pages-wrapper {flex:1;position:relative;overflow:hidden;}
+  .pages-slider {
+    display:flex;width:500%;height:100%;
+    will-change:transform;
+  }
+  .pages-slider.animating {
+    transition:transform .45s cubic-bezier(.32,.72,.35,1);
+  }
+  .page {
+    width:20%;height:100%;overflow-y:auto;overflow-x:hidden;
+    padding-bottom:100px;-webkit-overflow-scrolling:touch;flex-shrink:0;
+  }
+  .page::-webkit-scrollbar{display:none;}
+
+  .tab-bar {
+    position:fixed;bottom:0;left:0;right:0;display:flex;
+    justify-content:space-around;align-items:flex-start;
+    padding:8px 0 env(safe-area-inset-bottom,16px);
+    background:var(--tab-bg);backdrop-filter:blur(20px);
+    -webkit-backdrop-filter:blur(20px);
+    border-top:.5px solid var(--border);z-index:100;
+  }
+  .tab-item {
+    display:flex;flex-direction:column;align-items:center;gap:2px;
+    padding:4px 10px;background:none;border:none;color:var(--text2);
+    font-size:10px;font-weight:500;cursor:pointer;
+    transition:color .25s,transform .15s;position:relative;
+    font-family:inherit;
+  }
+  .tab-item.active{color:var(--accent);}
+  .tab-item:active{transform:scale(.9);}
+  .tab-item svg{width:24px;height:24px;transition:transform .25s;}
+  .tab-item.active svg{transform:scale(1.1);}
+  .tab-indicator {
+    position:absolute;bottom:-2px;width:4px;height:4px;
+    border-radius:50%;background:var(--accent);opacity:0;
+    transition:opacity .25s;
+  }
+  .tab-item.active .tab-indicator{opacity:1;}
+
+  .header{text-align:center;padding:16px 20px 8px;}
+  .header h1{font-size:28px;font-weight:800;letter-spacing:-.5px;}
+
+  .score-display{text-align:center;padding:20px 0 8px;}
+  .score-label{font-size:13px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:1px;}
+  .score-value {
+    font-size:48px;font-weight:900;letter-spacing:-2px;
+    background:linear-gradient(135deg,var(--orange),var(--pink));
+    -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  }
+  .per-tap{font-size:14px;color:var(--text2);font-weight:500;}
+
+  .clicker-area{display:flex;justify-content:center;align-items:center;padding:20px 0;position:relative;}
+  .click-btn {
+    width:200px;height:200px;border-radius:50%;background:none;border:none;
+    cursor:pointer;display:flex;align-items:center;justify-content:center;
+    transition:transform .1s;position:relative;z-index:2;padding:0;
+  }
+  .click-btn:active{transform:scale(.92);}
+  .click-btn svg{width:200px;height:200px;filter:drop-shadow(0 8px 24px var(--coin-glow));}
+
+  .float-text {
+    position:absolute;font-size:24px;font-weight:800;color:var(--orange);
+    pointer-events:none;animation:floatUp .9s ease-out forwards;z-index:10;
+    text-shadow:0 1px 4px rgba(0,0,0,.15);
+  }
+  @keyframes floatUp {
+    0%{opacity:1;transform:translateY(0) scale(1);}
+    100%{opacity:0;transform:translateY(-120px) scale(1.3);}
+  }
+
+  .energy-section{padding:0 32px;margin-top:8px;}
+  .energy-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+  .energy-label{font-size:13px;font-weight:600;color:var(--text2);}
+  .energy-value{font-size:13px;font-weight:700;color:var(--accent);}
+  .energy-bar-bg{height:10px;background:var(--energy-bg);border-radius:5px;overflow:hidden;}
+  .energy-bar-fill{height:100%;background:linear-gradient(90deg,var(--accent),#5ac8fa);border-radius:5px;transition:width .3s;}
+
+  .stats-row{display:flex;gap:10px;padding:16px 20px;}
+  .stat-card {
+    flex:1;background:var(--card);border:.5px solid var(--border);
+    border-radius:16px;padding:12px;text-align:center;box-shadow:var(--shadow);
+  }
+  .stat-card .icon{font-size:20px;margin-bottom:4px;}
+  .stat-card .val{font-size:18px;font-weight:800;}
+  .stat-card .lbl{font-size:10px;color:var(--text2);font-weight:600;text-transform:uppercase;}
+
+  .shop-section-title {
+    font-size:13px;font-weight:700;color:var(--text2);
+    text-transform:uppercase;letter-spacing:1px;padding:16px 20px 8px;
+  }
+  .shop-list{padding:0 16px;display:flex;flex-direction:column;gap:8px;}
+  .shop-item {
+    display:flex;align-items:center;gap:14px;background:var(--card);
+    border:.5px solid var(--border);border-radius:16px;padding:14px;
+    box-shadow:var(--shadow);transition:transform .15s;cursor:pointer;
+  }
+  .shop-item:active{transform:scale(.98);}
+  .shop-icon {
+    width:50px;height:50px;border-radius:14px;display:flex;
+    align-items:center;justify-content:center;font-size:26px;flex-shrink:0;
+  }
+  .shop-info{flex:1;min-width:0;}
+  .shop-name{font-size:16px;font-weight:700;margin-bottom:2px;}
+  .shop-desc{font-size:12px;color:var(--text2);font-weight:500;}
+  .shop-level{font-size:11px;color:var(--accent);font-weight:600;margin-top:2px;}
+  .shop-btn {
+    padding:8px 16px;border-radius:20px;border:none;font-size:13px;
+    font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;
+    transition:transform .15s,opacity .15s;font-family:inherit;
+  }
+  .shop-btn:active{transform:scale(.95);}
+  .shop-btn.coins-btn{background:linear-gradient(135deg,var(--orange),#e08600);color:white;}
+  .shop-btn.stars-btn{background:linear-gradient(135deg,var(--accent2),var(--accent));color:white;}
+  .shop-btn:disabled{opacity:.4;cursor:default;}
+
+  .balance-bar{display:flex;justify-content:center;gap:20px;padding:8px 20px 4px;}
+  .balance-chip {
+    display:flex;align-items:center;gap:6px;background:var(--bg2);
+    padding:8px 16px;border-radius:20px;font-weight:700;font-size:15px;
+  }
+
+  .skins-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:8px 16px;}
+  .skin-card {
+    background:var(--card);border:.5px solid var(--border);border-radius:20px;
+    padding:16px 8px;text-align:center;box-shadow:var(--shadow);cursor:pointer;
+    transition:transform .15s,border-color .2s;position:relative;
+  }
+  .skin-card:active{transform:scale(.95);}
+  .skin-card.active{border:2px solid var(--accent);}
+  .skin-card.locked{opacity:.5;}
+  .skin-card svg{width:64px;height:64px;margin-bottom:8px;}
+  .skin-card-name{font-size:12px;font-weight:700;margin-bottom:2px;}
+  .skin-card-price{font-size:11px;color:var(--text2);font-weight:600;}
+  .skin-card-badge {
+    position:absolute;top:8px;right:8px;font-size:10px;padding:2px 6px;
+    border-radius:8px;font-weight:700;color:white;
+  }
+  .skin-card-badge.equipped{background:var(--green);}
+  .skin-card-badge.locked-badge{background:var(--red);}
+
+  .lb-list{padding:8px 16px;display:flex;flex-direction:column;gap:6px;}
+  .lb-item {
+    display:flex;align-items:center;gap:12px;background:var(--card);
+    border:.5px solid var(--border);border-radius:16px;padding:12px 14px;
+    box-shadow:var(--shadow);
+  }
+  .lb-item.top1{border:1.5px solid #ffd700;}
+  .lb-item.top2{border:1.5px solid #c0c0c0;}
+  .lb-item.top3{border:1.5px solid #cd7f32;}
+  .lb-item.me{border:1.5px solid var(--accent);background:color-mix(in srgb,var(--accent) 5%,var(--card));}
+  .lb-rank {
+    width:32px;height:32px;border-radius:50%;display:flex;
+    align-items:center;justify-content:center;font-size:14px;
+    font-weight:800;background:var(--bg2);flex-shrink:0;
+  }
+  .lb-item.top1 .lb-rank{background:linear-gradient(135deg,#ffd700,#ffb347);color:#fff;}
+  .lb-item.top2 .lb-rank{background:linear-gradient(135deg,#c0c0c0,#e0e0e0);color:#fff;}
+  .lb-item.top3 .lb-rank{background:linear-gradient(135deg,#cd7f32,#e8a665);color:#fff;}
+  .lb-avatar {
+    width:40px;height:40px;border-radius:50%;object-fit:cover;
+    background:var(--bg3);flex-shrink:0;display:flex;
+    align-items:center;justify-content:center;font-size:20px;
+  }
+  img.lb-avatar{display:block;}
+  .lb-info{flex:1;min-width:0;}
+  .lb-name{font-size:15px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .lb-you{font-size:11px;color:var(--accent);font-weight:600;}
+  .lb-score{font-size:15px;font-weight:800;color:var(--orange);flex-shrink:0;}
+  .lb-empty{text-align:center;padding:48px 32px;color:var(--text2);}
+  .lb-empty-icon{font-size:64px;margin-bottom:16px;}
+  .lb-empty-title{font-size:18px;font-weight:700;color:var(--text);margin-bottom:8px;}
+  .lb-empty-desc{font-size:14px;font-weight:500;line-height:1.5;margin-bottom:20px;}
+  .lb-invite-btn {
+    display:inline-flex;align-items:center;gap:8px;
+    background:linear-gradient(135deg,var(--accent),var(--accent2));color:white;
+    padding:12px 24px;border-radius:24px;border:none;font-size:15px;
+    font-weight:700;cursor:pointer;font-family:inherit;transition:transform .15s;
+  }
+  .lb-invite-btn:active{transform:scale(.95);}
+  .lb-loading{text-align:center;padding:48px;color:var(--text2);font-size:14px;font-weight:600;}
+  .lb-tabs{display:flex;margin:8px 16px 0;background:var(--bg2);border-radius:12px;padding:3px;}
+  .lb-tab {
+    flex:1;padding:8px;border:none;background:none;border-radius:10px;
+    font-size:13px;font-weight:600;color:var(--text2);cursor:pointer;
+    transition:all .25s;font-family:inherit;
+  }
+  .lb-tab.active{background:var(--card);color:var(--text);box-shadow:0 1px 4px rgba(0,0,0,.1);}
+
+  .profile-hero{display:flex;flex-direction:column;align-items:center;padding:24px 20px;gap:12px;}
+  .profile-avatar{width:100px;height:100px;border-radius:50%;object-fit:cover;background:var(--bg3);border:3px solid var(--accent);}
+  .profile-name{font-size:24px;font-weight:800;}
+  .profile-username{font-size:15px;color:var(--text2);font-weight:500;margin-top:-8px;}
+  .profile-stats{display:flex;gap:8px;padding:0 16px;flex-wrap:wrap;}
+  .profile-stat {
+    flex:1;min-width:calc(50% - 8px);background:var(--card);border:.5px solid var(--border);
+    border-radius:16px;padding:16px;text-align:center;box-shadow:var(--shadow);
+  }
+  .profile-stat .p-icon{font-size:24px;margin-bottom:6px;}
+  .profile-stat .p-val{font-size:22px;font-weight:800;}
+  .profile-stat .p-lbl{font-size:11px;color:var(--text2);font-weight:600;text-transform:uppercase;margin-top:2px;}
+  .profile-actions{padding:20px 16px;display:flex;flex-direction:column;gap:8px;}
+  .profile-action-btn {
+    display:flex;align-items:center;gap:12px;background:var(--card);
+    border:.5px solid var(--border);border-radius:16px;padding:16px;
+    box-shadow:var(--shadow);cursor:pointer;transition:transform .15s;
+    font-size:16px;font-weight:600;color:var(--text);font-family:inherit;width:100%;text-align:left;
+  }
+  .profile-action-btn:active{transform:scale(.98);}
+  .profile-action-btn .pa-icon {
+    width:40px;height:40px;border-radius:12px;display:flex;
+    align-items:center;justify-content:center;font-size:20px;flex-shrink:0;
+  }
+  .profile-action-btn .pa-arrow{margin-left:auto;color:var(--text2);font-size:18px;}
+  .reset-btn .pa-icon{background:rgba(255,59,48,.12);}
+  .share-btn .pa-icon{background:rgba(0,122,255,.12);}
+
+  .toast {
+    position:fixed;top:60px;left:50%;
+    transform:translateX(-50%) translateY(-20px);
+    background:var(--card);border:.5px solid var(--border);
+    border-radius:16px;padding:14px 24px;font-size:14px;font-weight:600;
+    box-shadow:0 8px 32px rgba(0,0,0,.15);z-index:200;opacity:0;
+    pointer-events:none;transition:opacity .3s,transform .3s;
+    text-align:center;max-width:90%;white-space:pre-line;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+  .pulse-ring {
+    position:absolute;width:200px;height:200px;border-radius:50%;
+    border:3px solid var(--orange);opacity:0;pointer-events:none;
+    animation:pulseRing .5s ease-out forwards;
+  }
+  @keyframes pulseRing {
+    0%{transform:scale(1);opacity:.6;}
+    100%{transform:scale(1.5);opacity:0;}
+  }
+  .boost-badge {
+    display:inline-flex;align-items:center;gap:4px;
+    background:linear-gradient(135deg,var(--accent2),var(--pink));color:white;
+    padding:4px 12px;border-radius:12px;font-size:12px;font-weight:700;margin-top:4px;
+  }
+  .db-status{text-align:center;padding:4px;font-size:11px;font-weight:600;color:var(--text2);}
+  .db-status.online{color:var(--green);}
+  .db-status.offline{color:var(--orange);}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="toast" id="toast"></div>
+  <div class="pages-wrapper">
+    <div class="pages-slider" id="pages-slider">
+
+      <!-- CLICKER -->
+      <div class="page" id="page-clicker">
+        <div class="header"><h1>⚡ Vriska's Clicker</h1></div>
+        <div class="db-status" id="db-status"></div>
+        <div class="score-display">
+          <div class="score-label">Монеты</div>
+          <div class="score-value" id="score">0</div>
+          <div class="per-tap">+<span id="per-tap-val">1</span> за тап</div>
+          <div id="boost-indicator"></div>
+        </div>
+        <div class="clicker-area" id="clicker-area">
+          <button class="click-btn" id="click-btn"></button>
+        </div>
+        <div class="energy-section">
+          <div class="energy-header">
+            <span class="energy-label">⚡ Энергия</span>
+            <span class="energy-value"><span id="energy-val">500</span> / <span id="energy-max">500</span></span>
+          </div>
+          <div class="energy-bar-bg">
+            <div class="energy-bar-fill" id="energy-bar" style="width:100%"></div>
+          </div>
+        </div>
+        <div class="stats-row">
+          <div class="stat-card"><div class="icon">👆</div><div class="val" id="total-taps">0</div><div class="lbl">Тапов</div></div>
+          <div class="stat-card"><div class="icon">💰</div><div class="val" id="total-earned">0</div><div class="lbl">Заработано</div></div>
+          <div class="stat-card"><div class="icon">⚡</div><div class="val" id="cps-val">0</div><div class="lbl">В секунду</div></div>
+        </div>
+      </div>
+
+      <!-- SHOP -->
+      <div class="page" id="page-shop">
+        <div class="header"><h1>🏪 Магазин</h1></div>
+        <div class="balance-bar"><div class="balance-chip">🪙 <span id="shop-balance">0</span></div></div>
+        <div class="shop-section-title">💪 Прокачка за монеты</div>
+        <div class="shop-list" id="coin-shop"></div>
+        <div class="shop-section-title" style="margin-top:12px">⭐ Премиум за Telegram Stars</div>
+        <div class="shop-list" id="stars-shop"></div>
+        <div style="height:24px"></div>
+      </div>
+
+      <!-- SKINS -->
+      <div class="page" id="page-skins">
+        <div class="header"><h1>🎨 Скины</h1></div>
+        <div class="balance-bar"><div class="balance-chip">🪙 <span id="skins-balance">0</span></div></div>
+        <div class="shop-section-title">Выбери скин для кликера</div>
+        <div class="skins-grid" id="skins-grid"></div>
+      </div>
+
+      <!-- LEADERBOARD -->
+      <div class="page" id="page-leaders">
+        <div class="header"><h1>🏆 Лидеры</h1></div>
+        <div class="lb-tabs">
+          <button class="lb-tab active" onclick="switchLbTab('earned')">Заработано</button>
+          <button class="lb-tab" onclick="switchLbTab('taps')">Тапов</button>
+        </div>
+        <div class="lb-list" id="lb-list"><div class="lb-loading">⏳ Загрузка...</div></div>
+      </div>
+
+      <!-- PROFILE -->
+      <div class="page" id="page-profile">
+        <div class="header"><h1>👤 Профиль</h1></div>
+        <div class="profile-hero">
+          <img class="profile-avatar" id="profile-avatar" src="" alt="">
+          <div class="profile-name" id="profile-name">Игрок</div>
+          <div class="profile-username" id="profile-username">@username</div>
+        </div>
+        <div class="profile-stats">
+          <div class="profile-stat"><div class="p-icon">🪙</div><div class="p-val" id="p-coins">0</div><div class="p-lbl">Монеты</div></div>
+          <div class="profile-stat"><div class="p-icon">👆</div><div class="p-val" id="p-taps">0</div><div class="p-lbl">Тапов</div></div>
+          <div class="profile-stat"><div class="p-icon">⚡</div><div class="p-val" id="p-pertap">1</div><div class="p-lbl">За тап</div></div>
+          <div class="profile-stat"><div class="p-icon">🔋</div><div class="p-val" id="p-maxe">500</div><div class="p-lbl">Макс энергия</div></div>
+        </div>
+        <div class="profile-actions">
+          <button class="profile-action-btn share-btn" onclick="shareBot()">
+            <span class="pa-icon">📤</span>Поделиться ботом<span class="pa-arrow">›</span>
+          </button>
+          <button class="profile-action-btn reset-btn" onclick="resetProgress()">
+            <span class="pa-icon">🗑</span>Сбросить прогресс<span class="pa-arrow">›</span>
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="tab-bar">
+    <button class="tab-item active" onclick="switchTab('clicker')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v8m-4-4h8"/></svg>
+      <span>Кликер</span><div class="tab-indicator"></div>
+    </button>
+    <button class="tab-item" onclick="switchTab('shop')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+      <span>Магазин</span><div class="tab-indicator"></div>
+    </button>
+    <button class="tab-item" onclick="switchTab('skins')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 11-11.31 0z"/></svg>
+      <span>Скины</span><div class="tab-indicator"></div>
+    </button>
+    <button class="tab-item" onclick="switchTab('leaders')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.27 5.82 22 7 14.14l-5-4.87 6.91-1.01z"/></svg>
+      <span>Лидеры</span><div class="tab-indicator"></div>
+    </button>
+    <button class="tab-item" onclick="switchTab('profile')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <span>Профиль</span><div class="tab-indicator"></div>
+    </button>
+  </div>
+</div>
+
+<script>
+// ==========================================
+// TELEGRAM WEB APP
+// ==========================================
+const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+if (tg) { tg.ready(); tg.expand(); if (tg.setHeaderColor) tg.setHeaderColor('bg_color'); }
+
+function applyTheme() {
+  const isDark = tg ? tg.colorScheme === 'dark' : window.matchMedia('(prefers-color-scheme:dark)').matches;
+  document.documentElement.className = isDark ? 'dark' : '';
+}
+applyTheme();
+if (tg) tg.onEvent('themeChanged', applyTheme);
+window.matchMedia('(prefers-color-scheme:dark)').addEventListener('change', applyTheme);
+
+// ==========================================
+// API
+// ==========================================
+const BOT_TOKEN = '8328808800:AAGXn9OCZNgo79kcWZhnZgx4m1DEiUeVhdc';
+
+// ==========================================
+// CLOUD DATABASE — jsonbin.io (бесплатно, без CORS)
+// Один бин хранит JSON объект с ключами = tg_id игроков
+// ==========================================
+const JSONBIN_MASTER_KEY = '$2a$10$RL3WBiV0MxSjy3PmGkzJYeZGHMhDq5xNS0VvGqO5V5.Iy2hGZfMOq';
+let JSONBIN_BIN_ID = localStorage.getItem('vriska_bin_id') || '';
+let dbReady = false;
+let allPlayers = {};
+
+async function jbRequest(method, path, body) {
+  const headers = {
+    'Content-Type': 'application/json',
+    'X-Master-Key': JSONBIN_MASTER_KEY
+  };
+  if (method === 'GET') headers['X-Bin-Meta'] = 'false';
+  const opts = { method, headers };
+  if (body) opts.body = JSON.stringify(body);
+  const r = await fetch('https://api.jsonbin.io/v3' + path, opts);
+  return r.json();
+}
+
+async function initDB() {
+  const statusEl = document.getElementById('db-status');
+  statusEl.textContent = '⏳ Подключение...';
+  statusEl.className = 'db-status offline';
+
+  try {
+    // Пробуем загрузить существующий бин
+    if (JSONBIN_BIN_ID) {
+      try {
+        const data = await jbRequest('GET', '/b/' + JSONBIN_BIN_ID);
+        if (data && typeof data === 'object' && !data.message) {
+          allPlayers = data;
+          dbReady = true;
+          statusEl.textContent = '🟢 Онлайн';
+          statusEl.className = 'db-status online';
+          setTimeout(() => statusEl.style.opacity = '0', 2000);
+          await loadMyDataFromCloud();
+          return;
+        }
+      } catch(e) {
+        console.log('Bin load failed, creating new');
+      }
+    }
+
+    // Создаём новый бин
+    const res = await jbRequest('POST', '/b', { _created: Date.now() });
+    if (res && res.metadata && res.metadata.id) {
+      JSONBIN_BIN_ID = res.metadata.id;
+      localStorage.setItem('vriska_bin_id', JSONBIN_BIN_ID);
+      allPlayers = {};
+      dbReady = true;
+      statusEl.textContent = '🟢 Онлайн';
+      statusEl.className = 'db-status online';
+      setTimeout(() => statusEl.style.opacity = '0', 2000);
+      await syncToCloud();
+    } else {
+      throw new Error('Failed to create bin');
+    }
+  } catch(e) {
+    console.error('DB init error:', e);
+    statusEl.textContent = '⚠️ Локальный режим';
+    statusEl.className = 'db-status offline';
+  }
+}
+
+function getMyCloudData() {
+  return {
+    name: getUserName(),
+    username: getUserUsername(),
+    photo: getUserPhoto(),
+    coins: state.coins,
+    totalTaps: state.totalTaps,
+    totalEarned: state.totalEarned,
+    perTap: state.perTap,
+    cps: state.cps,
+    maxEnergy: state.maxEnergy,
+    energyRegen: state.energyRegen,
+    upgrades: state.upgrades,
+    premiumUpgrades: state.premiumUpgrades,
+    ownedSkins: state.ownedSkins,
+    skin: state.skin,
+    lastSync: Date.now()
+  };
+}
+
+async function loadMyDataFromCloud() {
+  const uid = getUserId();
+  const cloud = allPlayers[uid];
+  if (cloud && cloud.totalEarned > (state.totalEarned || 0)) {
+    state.coins = cloud.coins || 0;
+    state.totalTaps = cloud.totalTaps || 0;
+    state.totalEarned = cloud.totalEarned || 0;
+    state.perTap = cloud.perTap || 1;
+    state.cps = cloud.cps || 0;
+    state.maxEnergy = cloud.maxEnergy || 500;
+    state.energyRegen = cloud.energyRegen || 1;
+    state.skin = cloud.skin || 'classic';
+    state.upgrades = cloud.upgrades || {};
+    state.premiumUpgrades = cloud.premiumUpgrades || {};
+    state.ownedSkins = cloud.ownedSkins || ['classic'];
+    recalcStats();
+    saveState();
+    updateClickerUI();
+    setClickerSkin(state.skin);
+  }
+}
+
+let syncPending = false;
+async function syncToCloud() {
+  if (!dbReady || !JSONBIN_BIN_ID || syncPending) return;
+  syncPending = true;
+  try {
+    const uid = getUserId();
+    allPlayers[uid] = getMyCloudData();
+    await jbRequest('PUT', '/b/' + JSONBIN_BIN_ID, allPlayers);
+  } catch(e) {
+    console.error('Sync error:', e);
+  }
+  syncPending = false;
+}
+
+async function refreshFromCloud() {
+  if (!dbReady || !JSONBIN_BIN_ID) return;
+  try {
+    const data = await jbRequest('GET', '/b/' + JSONBIN_BIN_ID);
+    if (data && typeof data === 'object' && !data.message) {
+      allPlayers = data;
+    }
+  } catch(e) {
+    console.error('Refresh error:', e);
+  }
+}
+
+// ==========================================
+// USER INFO FROM TELEGRAM
+// ==========================================
+function getUserId() {
+  if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) return String(tg.initDataUnsafe.user.id);
+  let id = localStorage.getItem('vriska_temp_uid');
+  if (!id) { id = 'local_' + Math.random().toString(36).substr(2, 9); localStorage.setItem('vriska_temp_uid', id); }
+  return id;
+}
+function getUserName() {
+  if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
+    const u = tg.initDataUnsafe.user;
+    return u.first_name + (u.last_name ? ' ' + u.last_name : '');
+  }
+  return 'Игрок';
+}
+function getUserUsername() {
+  if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user)
+    return '@' + (tg.initDataUnsafe.user.username || 'user' + tg.initDataUnsafe.user.id);
+  return '@player';
+}
+function getUserPhoto() {
+  if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.photo_url)
+    return tg.initDataUnsafe.user.photo_url;
+  return '';
+}
+
+// ==========================================
+// TELEGRAM STARS — РЕАЛЬНАЯ ОПЛАТА
+// ==========================================
+async function createStarInvoice(item) {
+  try {
+    const payload = JSON.stringify({
+      item_id: item.id,
+      user_id: getUserId(),
+      ts: Date.now()
+    });
+    const res = await fetch('https://api.telegram.org/bot' + BOT_TOKEN + '/createInvoiceLink', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: item.name,
+        description: item.desc,
+        payload: payload,
+        provider_token: '',
+        currency: 'XTR',
+        prices: [{ label: item.name, amount: item.stars }]
+      })
+    });
+    const data = await res.json();
+    if (data.ok && data.result) return data.result;
+    console.error('Invoice error:', data);
+    return null;
+  } catch(e) {
+    console.error('createStarInvoice error:', e);
+    return null;
+  }
+}
+
+// ==========================================
+// GAME STATE
+// ==========================================
+const SAVE_KEY = 'vriska_clicker_v7';
+let state = loadState();
+
+function defaultState() {
+  return {
+    coins:0,totalTaps:0,totalEarned:0,energy:500,maxEnergy:500,
+    perTap:1,cps:0,energyRegen:1,upgrades:{},premiumUpgrades:{},
+    skin:'classic',ownedSkins:['classic'],lastTime:Date.now()
+  };
+}
+function loadState() {
+  try {
+    const s = localStorage.getItem(SAVE_KEY);
+    if (s) { const p = JSON.parse(s); const d = defaultState(); for (let k in d) { if (!(k in p)) p[k]=d[k]; } return p; }
+  } catch(e) {}
+  return defaultState();
+}
+function saveState() { state.lastTime = Date.now(); localStorage.setItem(SAVE_KEY, JSON.stringify(state)); }
+
+let syncCounter = 0;
+function saveAndSync() {
+  saveState();
+  syncCounter++;
+  if (syncCounter >= 20) { syncCounter = 0; syncToCloud(); }
+}
+
+// ==========================================
+// SVG SKINS
+// ==========================================
+const SKINS = {
+  classic: {
+    name: 'Классика', price: 0,
+    svg: '<svg viewBox="0 0 200 200"><defs><linearGradient id="cg1" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#FFD700"/><stop offset="50%" stop-color="#FFA500"/><stop offset="100%" stop-color="#FF8C00"/></linearGradient><linearGradient id="cs1" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="rgba(255,255,255,0.6)"/><stop offset="100%" stop-color="rgba(255,255,255,0)"/></linearGradient></defs><circle cx="100" cy="100" r="95" fill="url(#cg1)" stroke="#B8860B" stroke-width="4"/><circle cx="100" cy="100" r="80" fill="none" stroke="#B8860B" stroke-width="2" opacity="0.5"/><ellipse cx="75" cy="65" rx="35" ry="25" fill="url(#cs1)" opacity="0.4"/><text x="100" y="118" text-anchor="middle" font-size="60" font-weight="900" fill="#B8860B" font-family="Inter,sans-serif">V</text></svg>'
+  },
+  diamond: {
+    name: 'Алмаз', price: 5000,
+    svg: '<svg viewBox="0 0 200 200"><defs><linearGradient id="dg1" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#E0F7FA"/><stop offset="30%" stop-color="#4DD0E1"/><stop offset="60%" stop-color="#0097A7"/><stop offset="100%" stop-color="#006064"/></linearGradient></defs><circle cx="100" cy="100" r="95" fill="url(#dg1)" stroke="#00838F" stroke-width="4"/><polygon points="100,30 140,80 160,80 100,170 40,80 60,80" fill="rgba(255,255,255,0.3)" stroke="rgba(255,255,255,0.5)" stroke-width="2"/><polygon points="100,30 80,80 120,80" fill="rgba(255,255,255,0.2)"/><line x1="100" y1="30" x2="60" y2="80" stroke="rgba(255,255,255,0.4)" stroke-width="1.5"/><line x1="100" y1="30" x2="140" y2="80" stroke="rgba(255,255,255,0.4)" stroke-width="1.5"/><line x1="80" y1="80" x2="100" y2="170" stroke="rgba(255,255,255,0.3)" stroke-width="1.5"/><line x1="120" y1="80" x2="100" y2="170" stroke="rgba(255,255,255,0.3)" stroke-width="1.5"/><line x1="40" y1="80" x2="160" y2="80" stroke="rgba(255,255,255,0.4)" stroke-width="1.5"/><text x="100" y="115" text-anchor="middle" font-size="40" font-weight="900" fill="rgba(255,255,255,0.9)" font-family="Inter,sans-serif">V</text></svg>'
+  },
+  fire: {
+    name: 'Огонь', price: 10000,
+    svg: '<svg viewBox="0 0 200 200"><defs><linearGradient id="fg1" x1="0%" y1="100%" x2="0%" y2="0%"><stop offset="0%" stop-color="#FF6B00"/><stop offset="50%" stop-color="#FF3D00"/><stop offset="100%" stop-color="#DD2C00"/></linearGradient><radialGradient id="fg2" cx="50%" cy="70%" r="50%"><stop offset="0%" stop-color="#FFAB00" stop-opacity="0.8"/><stop offset="100%" stop-color="#FF6D00" stop-opacity="0"/></radialGradient></defs><circle cx="100" cy="100" r="95" fill="url(#fg1)" stroke="#BF360C" stroke-width="4"/><circle cx="100" cy="100" r="70" fill="url(#fg2)"/><path d="M100,35 Q120,70 110,90 Q130,60 125,45 Q150,80 140,115 Q145,95 155,90 Q160,130 130,155 Q140,140 135,130 Q120,165 100,170 Q80,165 65,130 Q60,140 70,155 Q40,130 40,90 Q55,95 55,115 Q50,80 75,45 Q70,60 90,90 Q80,70 100,35Z" fill="#FFAB00" opacity="0.7"/><path d="M100,65 Q115,85 108,100 Q120,80 130,95 Q135,125 115,145 Q125,130 100,155 Q75,130 85,145 Q65,125 70,95 Q80,80 92,100 Q85,85 100,65Z" fill="#FFD600" opacity="0.6"/><text x="100" y="122" text-anchor="middle" font-size="36" font-weight="900" fill="white" font-family="Inter,sans-serif" opacity="0.9">V</text></svg>'
+  },
+  galaxy: {
+    name: 'Галактика', price: 25000,
+    svg: '<svg viewBox="0 0 200 200"><defs><radialGradient id="gg1" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#7C4DFF"/><stop offset="40%" stop-color="#536DFE"/><stop offset="100%" stop-color="#1A237E"/></radialGradient></defs><circle cx="100" cy="100" r="95" fill="url(#gg1)" stroke="#311B92" stroke-width="4"/><circle cx="60" cy="50" r="2" fill="white" opacity="0.9"/><circle cx="140" cy="40" r="1.5" fill="white" opacity="0.7"/><circle cx="45" cy="130" r="1" fill="white" opacity="0.6"/><circle cx="155" cy="120" r="2" fill="white" opacity="0.8"/><circle cx="80" cy="160" r="1.5" fill="white" opacity="0.5"/><circle cx="120" cy="155" r="1" fill="white" opacity="0.7"/><circle cx="50" cy="80" r="1" fill="white" opacity="0.4"/><circle cx="150" cy="70" r="1.5" fill="white" opacity="0.6"/><circle cx="35" cy="100" r="1" fill="white" opacity="0.3"/><circle cx="165" cy="95" r="1.5" fill="white" opacity="0.5"/><ellipse cx="100" cy="100" rx="70" ry="25" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="8" transform="rotate(-30,100,100)"/><ellipse cx="100" cy="100" rx="55" ry="18" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="5" transform="rotate(-30,100,100)"/><circle cx="100" cy="100" r="15" fill="rgba(255,255,255,0.2)"/><circle cx="100" cy="100" r="8" fill="rgba(255,255,255,0.4)"/><text x="100" y="108" text-anchor="middle" font-size="14" font-weight="900" fill="white" font-family="Inter,sans-serif">V</text></svg>'
+  },
+  skull: {
+    name: 'Череп', price: 50000,
+    svg: '<svg viewBox="0 0 200 200"><defs><linearGradient id="sg1" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#424242"/><stop offset="100%" stop-color="#212121"/></linearGradient></defs><circle cx="100" cy="100" r="95" fill="url(#sg1)" stroke="#616161" stroke-width="4"/><ellipse cx="100" cy="88" rx="45" ry="48" fill="#E0E0E0"/><ellipse cx="100" cy="82" rx="42" ry="42" fill="#F5F5F5"/><ellipse cx="82" cy="78" rx="12" ry="14" fill="#212121"/><ellipse cx="118" cy="78" rx="12" ry="14" fill="#212121"/><ellipse cx="82" cy="76" rx="5" ry="5" fill="#F44336" opacity="0.6"/><ellipse cx="118" cy="76" rx="5" ry="5" fill="#F44336" opacity="0.6"/><ellipse cx="100" cy="98" rx="5" ry="6" fill="#424242"/><path d="M82,115 Q85,120 90,118 Q95,122 100,118 Q105,122 110,118 Q115,120 118,115 L118,125 Q110,130 100,130 Q90,130 82,125Z" fill="#E0E0E0" stroke="#BDBDBD" stroke-width="1"/><line x1="90" y1="115" x2="90" y2="128" stroke="#BDBDBD" stroke-width="1"/><line x1="100" y1="115" x2="100" y2="130" stroke="#BDBDBD" stroke-width="1"/><line x1="110" y1="115" x2="110" y2="128" stroke="#BDBDBD" stroke-width="1"/></svg>'
+  },
+  neon: {
+    name: 'Неон', price: 100000,
+    svg: '<svg viewBox="0 0 200 200"><defs><radialGradient id="ng1" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#1a1a2e"/><stop offset="100%" stop-color="#0a0a15"/></radialGradient><filter id="nGlow"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><circle cx="100" cy="100" r="95" fill="url(#ng1)" stroke="#0ff" stroke-width="3" opacity="0.8"/><circle cx="100" cy="100" r="88" fill="none" stroke="#0ff" stroke-width="1.5" opacity="0.3" filter="url(#nGlow)"/><circle cx="100" cy="100" r="70" fill="none" stroke="#f0f" stroke-width="1.5" opacity="0.3" filter="url(#nGlow)"/><circle cx="100" cy="100" r="50" fill="none" stroke="#0f0" stroke-width="1.5" opacity="0.3" filter="url(#nGlow)"/><text x="100" y="118" text-anchor="middle" font-size="56" font-weight="900" fill="#0ff" font-family="Inter,sans-serif" filter="url(#nGlow)">V</text><line x1="30" y1="100" x2="50" y2="100" stroke="#f0f" stroke-width="2" opacity="0.6" filter="url(#nGlow)"/><line x1="150" y1="100" x2="170" y2="100" stroke="#f0f" stroke-width="2" opacity="0.6" filter="url(#nGlow)"/><line x1="100" y1="30" x2="100" y2="50" stroke="#0f0" stroke-width="2" opacity="0.6" filter="url(#nGlow)"/><line x1="100" y1="150" x2="100" y2="170" stroke="#0f0" stroke-width="2" opacity="0.6" filter="url(#nGlow)"/></svg>'
+  }
+};
+
+function setClickerSkin(skinId) {
+  const skin = SKINS[skinId]; if (!skin) return;
+  document.getElementById('click-btn').innerHTML = skin.svg;
+}
+
+// ==========================================
+// SHOP ITEMS
+// ==========================================
+const coinUpgrades = [
+  { id:'tap1',name:'Крепкий палец',desc:'Сила тапа +1',icon:'👆',iconBg:'linear-gradient(135deg,#ff9500,#ff6723)',baseCost:50,costMult:1.8,effect:'perTap',effectVal:1,maxLvl:50 },
+  { id:'tap2',name:'Золотой палец',desc:'Сила тапа +3',icon:'🏆',iconBg:'linear-gradient(135deg,#ffd700,#ff9500)',baseCost:500,costMult:2.0,effect:'perTap',effectVal:3,maxLvl:30 },
+  { id:'energy1',name:'Батарейка',desc:'Макс. энергия +100',icon:'🔋',iconBg:'linear-gradient(135deg,#34c759,#30d158)',baseCost:200,costMult:1.6,effect:'maxEnergy',effectVal:100,maxLvl:20 },
+  { id:'regen1',name:'Ускоритель',desc:'Регенерация +1/сек',icon:'⚡',iconBg:'linear-gradient(135deg,#007aff,#5ac8fa)',baseCost:300,costMult:2.0,effect:'energyRegen',effectVal:1,maxLvl:15 },
+  { id:'auto1',name:'Авто-кликер',desc:'Пассивный доход +1/сек',icon:'🤖',iconBg:'linear-gradient(135deg,#5856d6,#af52de)',baseCost:1000,costMult:2.2,effect:'cps',effectVal:1,maxLvl:20 },
+  { id:'auto2',name:'Мега-бот',desc:'Пассивный доход +5/сек',icon:'🚀',iconBg:'linear-gradient(135deg,#ff2d55,#ff6b81)',baseCost:5000,costMult:2.5,effect:'cps',effectVal:5,maxLvl:15 },
+];
+
+const starUpgrades = [
+  { id:'star_mega',name:'Мега Тап',desc:'Сила тапа x2 навсегда',icon:'💥',iconBg:'linear-gradient(135deg,#ff2d55,#ff9500)',stars:50,effect:'perTapMult',effectVal:2,oneTime:true },
+  { id:'star_energy',name:'Бесконечная энергия',desc:'Макс. энергия +5000',icon:'♾️',iconBg:'linear-gradient(135deg,#34c759,#00c7be)',stars:75,effect:'maxEnergy',effectVal:5000,oneTime:true },
+  { id:'star_auto',name:'Ультра-бот',desc:'Пассивный доход +50/сек',icon:'🦾',iconBg:'linear-gradient(135deg,#5856d6,#007aff)',stars:100,effect:'cps',effectVal:50,oneTime:true },
+  { id:'star_regen',name:'Мега регенерация',desc:'Регенерация +20/сек',icon:'🌊',iconBg:'linear-gradient(135deg,#5ac8fa,#007aff)',stars:60,effect:'energyRegen',effectVal:20,oneTime:true },
+  { id:'star_tap10',name:'Легендарный тап',desc:'Сила тапа +50',icon:'✨',iconBg:'linear-gradient(135deg,#ffd700,#ff2d55)',stars:150,effect:'perTap',effectVal:50,oneTime:true },
+  { id:'star_pack',name:'Стартовый пак',desc:'+10000 монет мгновенно',icon:'💰',iconBg:'linear-gradient(135deg,#ff9500,#ffd700)',stars:30,effect:'coins',effectVal:10000,oneTime:false },
+];
+
+function getUpgradeCost(item) {
+  const lvl = state.upgrades[item.id] || 0;
+  return Math.floor(item.baseCost * Math.pow(item.costMult, lvl));
+}
+
+// ==========================================
+// OFFLINE EARNINGS
+// ==========================================
+function applyOffline() {
+  const now = Date.now();
+  const diff = Math.min((now - state.lastTime) / 1000, 3600 * 4);
+  if (diff > 5 && state.cps > 0) {
+    const earned = Math.floor(state.cps * diff);
+    state.coins += earned; state.totalEarned += earned;
+    showToast('💰 Пока тебя не было:\n+' + formatNum(earned) + ' монет!');
+  }
+  state.energy = Math.min(state.energy + Math.floor(state.energyRegen * diff), state.maxEnergy);
+  state.lastTime = now; saveState();
+}
+
+// ==========================================
+// UI HELPERS
+// ==========================================
+function formatNum(n) {
+  if (n >= 1e9) return (n/1e9).toFixed(1)+'B';
+  if (n >= 1e6) return (n/1e6).toFixed(1)+'M';
+  if (n >= 1e4) return (n/1e3).toFixed(1)+'K';
+  return n.toLocaleString('ru');
+}
+function showToast(text) {
+  const t = document.getElementById('toast');
+  t.textContent = text; t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ==========================================
+// TABS / SLIDER — FIXED SWIPE SPEED
+// ==========================================
+const tabNames = ['clicker','shop','skins','leaders','profile'];
+let currentTabIndex = 0;
+const slider = document.getElementById('pages-slider');
+
+function setSliderPos(pct, animate) {
+  if (animate) {
+    slider.classList.add('animating');
+  } else {
+    slider.classList.remove('animating');
+  }
+  slider.style.transform = 'translateX(-' + pct + '%)';
+}
+
+function switchTab(name) {
+  const idx = tabNames.indexOf(name); if (idx === -1) return;
+  currentTabIndex = idx;
+  setSliderPos(idx * 20, true);
+  document.querySelectorAll('.tab-item').forEach((t,i) => t.classList.toggle('active', i===idx));
+  if (name==='shop') renderShop();
+  if (name==='skins') renderSkins();
+  if (name==='leaders') renderLeaderboard();
+  if (name==='profile') renderProfile();
+  if (tg && tg.HapticFeedback) tg.HapticFeedback.selectionChanged();
+}
+
+// Swipe с замедлением
+let touchStartX = 0, touchStartY = 0, touchStartTime = 0;
+let isSwiping = false, swipeStartPct = 0;
+let hasMoved = false;
+const pagesWrapper = document.querySelector('.pages-wrapper');
+
+pagesWrapper.addEventListener('touchstart', e => {
+  touchStartX = e.touches[0].clientX;
+  touchStartY = e.touches[0].clientY;
+  touchStartTime = Date.now();
+  isSwiping = false;
+  hasMoved = false;
+  swipeStartPct = currentTabIndex * 20;
+  slider.classList.remove('animating');
+}, {passive: true});
+
+pagesWrapper.addEventListener('touchmove', e => {
+  const dx = e.touches[0].clientX - touchStartX;
+  const dy = e.touches[0].clientY - touchStartY;
+
+  if (!hasMoved) {
+    if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+    hasMoved = true;
+    // Определяем горизонтальный свайп только если dx > dy * 1.5
+    if (Math.abs(dx) > Math.abs(dy) * 1.5) {
+      isSwiping = true;
+    } else {
+      isSwiping = false;
+      return;
+    }
+  }
+
+  if (!isSwiping) return;
+
+  const pct = (dx / pagesWrapper.offsetWidth) * 100;
+  let t = swipeStartPct - pct;
+  // Rubber band на краях
+  if (t < 0) t *= 0.2;
+  if (t > 80) t = 80 + (t - 80) * 0.2;
+  slider.style.transform = 'translateX(-' + t + '%)';
+}, {passive: true});
+
+pagesWrapper.addEventListener('touchend', e => {
+  if (!isSwiping) return;
+  isSwiping = false;
+
+  const dx = e.changedTouches[0].clientX - touchStartX;
+  const dt = Date.now() - touchStartTime;
+  const velocity = Math.abs(dx) / dt; // px/ms
+  const ww = pagesWrapper.offsetWidth;
+
+  // Порог: 35% ширины ИЛИ быстрый свайп (velocity > 0.5)
+  const threshold = ww * 0.35;
+  const fastSwipe = velocity > 0.5 && Math.abs(dx) > 30;
+
+  let newIdx = currentTabIndex;
+  if ((dx < -threshold || (fastSwipe && dx < 0)) && currentTabIndex < 4) {
+    newIdx = currentTabIndex + 1;
+  } else if ((dx > threshold || (fastSwipe && dx > 0)) && currentTabIndex > 0) {
+    newIdx = currentTabIndex - 1;
+  }
+
+  switchTab(tabNames[newIdx]);
+}, {passive: true});
+
+// ==========================================
+// CLICKER
+// ==========================================
+const clickBtn = document.getElementById('click-btn');
+const clickerArea = document.getElementById('clicker-area');
+clickBtn.addEventListener('pointerdown', e => { e.preventDefault(); doClick(e); });
+
+function doClick(e) {
+  if (state.energy <= 0) {
+    showToast('⚡ Нет энергии!');
+    if (tg&&tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('error');
+    return;
+  }
+  state.coins += state.perTap; state.totalTaps++; state.totalEarned += state.perTap;
+  state.energy = Math.max(0, state.energy - 1);
+
+  const rect = clickerArea.getBoundingClientRect();
+  const cx = e.clientX||rect.left+rect.width/2, cy = e.clientY||rect.top+80;
+  const ft = document.createElement('div');
+  ft.className='float-text'; ft.textContent='+'+formatNum(state.perTap);
+  ft.style.left=(cx-rect.left-20)+'px'; ft.style.top=(cy-rect.top-20)+'px';
+  clickerArea.appendChild(ft); setTimeout(()=>ft.remove(),900);
+
+  const ring = document.createElement('div');
+  ring.className='pulse-ring';
+  const br = clickBtn.getBoundingClientRect();
+  ring.style.left=(br.left-rect.left)+'px'; ring.style.top=(br.top-rect.top)+'px';
+  clickerArea.appendChild(ring); setTimeout(()=>ring.remove(),500);
+
+  if (tg&&tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
+  updateClickerUI(); saveAndSync();
+}
+
+function updateClickerUI() {
+  document.getElementById('score').textContent = formatNum(state.coins);
+  document.getElementById('per-tap-val').textContent = formatNum(state.perTap);
+  document.getElementById('energy-val').textContent = state.energy;
+  document.getElementById('energy-max').textContent = state.maxEnergy;
+  document.getElementById('energy-bar').style.width = (state.energy/state.maxEnergy*100)+'%';
+  document.getElementById('total-taps').textContent = formatNum(state.totalTaps);
+  document.getElementById('total-earned').textContent = formatNum(state.totalEarned);
+  document.getElementById('cps-val').textContent = formatNum(state.cps);
+  const bi = document.getElementById('boost-indicator');
+  const boosts = [];
+  if (state.premiumUpgrades['star_mega']) boosts.push('x2 Тап');
+  if (state.cps > 0) boosts.push(formatNum(state.cps)+'/сек');
+  bi.innerHTML = boosts.length ? '<span class="boost-badge">🔥 '+boosts.join(' • ')+'</span>' : '';
+}
+
+// Tick 1s
+setInterval(() => {
+  if (state.energy < state.maxEnergy) state.energy = Math.min(state.energy+state.energyRegen, state.maxEnergy);
+  if (state.cps > 0) { state.coins += state.cps; state.totalEarned += state.cps; }
+  updateClickerUI(); saveState();
+}, 1000);
+
+// ==========================================
+// SHOP
+// ==========================================
+function renderShop() {
+  document.getElementById('shop-balance').textContent = formatNum(state.coins);
+  const coinList = document.getElementById('coin-shop');
+  coinList.innerHTML = '';
+  coinUpgrades.forEach(item => {
+    const lvl = state.upgrades[item.id]||0, cost = getUpgradeCost(item);
+    const canBuy = state.coins>=cost && lvl<item.maxLvl, maxed = lvl>=item.maxLvl;
+    const div = document.createElement('div'); div.className='shop-item';
+    if(canBuy) div.onclick = () => buyCoinUpgrade(item.id);
+    div.innerHTML = '<div class="shop-icon" style="background:'+item.iconBg+'">'+item.icon+'</div><div class="shop-info"><div class="shop-name">'+item.name+'</div><div class="shop-desc">'+item.desc+'</div><div class="shop-level">Уровень '+lvl+(item.maxLvl?' / '+item.maxLvl:'')+'</div></div><button class="shop-btn coins-btn" '+(! canBuy?'disabled':'')+'>'+(maxed?'MAX':'🪙 '+formatNum(cost))+'</button>';
+    coinList.appendChild(div);
+  });
+
+  const starList = document.getElementById('stars-shop');
+  starList.innerHTML = '';
+  starUpgrades.forEach(item => {
+    const bought = state.premiumUpgrades[item.id];
+    const canBuy = item.oneTime ? !bought : true;
+    const div = document.createElement('div'); div.className='shop-item';
+    if(canBuy) div.onclick = () => buyStarUpgrade(item.id);
+    div.innerHTML = '<div class="shop-icon" style="background:'+item.iconBg+'">'+item.icon+'</div><div class="shop-info"><div class="shop-name">'+item.name+'</div><div class="shop-desc">'+item.desc+'</div>'+(bought&&item.oneTime?'<div class="shop-level" style="color:var(--green)">✅ Куплено</div>':'')+'</div><button class="shop-btn stars-btn" '+(!canBuy?'disabled':'')+'>'+(bought&&item.oneTime?'✅':'⭐ '+item.stars)+'</button>';
+    starList.appendChild(div);
+  });
+}
+
+function buyCoinUpgrade(id) {
+  const item = coinUpgrades.find(x=>x.id===id); if(!item) return;
+  const lvl = state.upgrades[item.id]||0, cost = getUpgradeCost(item);
+  if (state.coins<cost||lvl>=item.maxLvl) return;
+  state.coins -= cost; state.upgrades[item.id] = lvl+1;
+  applyEffect(item.effect, item.effectVal);
+  recalcStats(); saveState(); syncToCloud(); renderShop(); updateClickerUI();
+  showToast('✅ '+item.name+' → Ур. '+state.upgrades[item.id]);
+  if(tg&&tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+}
+
+async function buyStarUpgrade(id) {
+  const item = starUpgrades.find(x=>x.id===id); if(!item) return;
+  if (item.oneTime && state.premiumUpgrades[item.id]) return;
+
+  if (!tg) {
+    showToast('⚠️ Откройте в Telegram для покупки Stars');
+    return;
+  }
+
+  showToast('⏳ Создаю платёж...');
+
+  const invoiceUrl = await createStarInvoice(item);
+  if (!invoiceUrl) {
+    showToast('❌ Не удалось создать платёж');
+    return;
+  }
+
+  tg.openInvoice(invoiceUrl, function(status) {
+    if (status === 'paid') {
+      if (item.oneTime) state.premiumUpgrades[item.id] = true;
+      applyEffect(item.effect, item.effectVal);
+      recalcStats(); saveState(); syncToCloud(); renderShop(); updateClickerUI();
+      showToast('🌟 ' + item.name + ' активирован!');
+      if(tg&&tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+    } else if (status === 'cancelled') {
+      showToast('❌ Платёж отменён');
+    } else if (status === 'failed') {
+      showToast('❌ Ошибка платежа');
+    } else if (status === 'pending') {
+      showToast('⏳ Ожидание оплаты...');
+    }
+  });
+}
+
+function applyEffect(effect, val) {
+  if (effect==='perTap') state.perTap += val;
+  if (effect==='perTapMult') state.perTap *= val;
+  if (effect==='maxEnergy') { state.maxEnergy+=val; state.energy=Math.min(state.energy+val,state.maxEnergy); }
+  if (effect==='energyRegen') state.energyRegen += val;
+  if (effect==='cps') state.cps += val;
+  if (effect==='coins') { state.coins+=val; state.totalEarned+=val; }
+}
+
+// ==========================================
+// SKINS
+// ==========================================
+function renderSkins() {
+  document.getElementById('skins-balance').textContent = formatNum(state.coins);
+  const grid = document.getElementById('skins-grid'); grid.innerHTML='';
+  Object.entries(SKINS).forEach(([id,skin])=>{
+    const owned=state.ownedSkins.includes(id), equipped=state.skin===id;
+    const canBuy=!owned&&state.coins>=skin.price;
+    const card=document.createElement('div');
+    card.className='skin-card'+(equipped?' active':'')+(!owned?' locked':'');
+    card.innerHTML = skin.svg+'<div class="skin-card-name">'+skin.name+'</div><div class="skin-card-price">'+(owned?(equipped?'':'Надеть'):'🪙 '+formatNum(skin.price))+'</div>'+(equipped?'<div class="skin-card-badge equipped">✓</div>':'')+(!owned?'<div class="skin-card-badge locked-badge">🔒</div>':'');
+    card.onclick = () => {
+      if(equipped)return;
+      if(owned){
+        state.skin=id; setClickerSkin(id); saveState(); syncToCloud(); renderSkins();
+        showToast('🎨 Скин «'+skin.name+'» установлен!');
+        if(tg&&tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
+      } else if(canBuy){
+        state.coins-=skin.price; state.ownedSkins.push(id); state.skin=id;
+        setClickerSkin(id); saveState(); syncToCloud(); renderSkins(); updateClickerUI();
+        showToast('🎉 Скин «'+skin.name+'» куплен!');
+        if(tg&&tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+      } else {
+        showToast('🪙 Нужно '+formatNum(skin.price)+' монет!');
+        if(tg&&tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('error');
+      }
+    };
+    grid.appendChild(card);
+  });
+}
+
+// ==========================================
+// LEADERBOARD — REAL DATA ONLY
+// ==========================================
+let lbSortBy = 'totalEarned';
+function switchLbTab(type) {
+  lbSortBy = type==='taps' ? 'totalTaps' : 'totalEarned';
+  document.querySelectorAll('.lb-tab').forEach((t,i)=>t.classList.toggle('active',type==='taps'?i===1:i===0));
+  renderLeaderboard();
+}
+
+async function renderLeaderboard() {
+  const list = document.getElementById('lb-list');
+  list.innerHTML = '<div class="lb-loading">⏳ Загрузка лидеров...</div>';
+
+  // Сначала синкаем свои данные
+  await syncToCloud();
+  // Потом загружаем всех
+  await refreshFromCloud();
+
+  const myUid = getUserId();
+
+  // Собираем массив игроков из облака
+  const players = [];
+  for (const [uid, p] of Object.entries(allPlayers)) {
+    if (uid === '_created') continue;
+    if (!p || !p.name) continue;
+    players.push({ uid, ...p });
+  }
+
+  if (players.length === 0) {
+    list.innerHTML = '<div class="lb-empty"><div class="lb-empty-icon">🏆</div><div class="lb-empty-title">Пока пусто</div><div class="lb-empty-desc">Начни кликать и пригласи друзей чтобы заполнить лидерборд!</div><button class="lb-invite-btn" onclick="shareBot()">📤 Пригласить друзей</button></div>';
+    return;
+  }
+
+  // Сортируем
+  players.sort((a,b) => (b[lbSortBy]||0) - (a[lbSortBy]||0));
+
+  list.innerHTML = '';
+  players.forEach((p, i) => {
+    const rank = i + 1;
+    const isMe = String(p.uid) === String(myUid);
+    const topClass = rank===1?'top1':rank===2?'top2':rank===3?'top3':'';
+    const medals = ['','🥇','🥈','🥉'];
+    const rankDisplay = rank<=3 ? medals[rank] : rank;
+    const val = lbSortBy==='totalTaps' ? (p.totalTaps||0) : (p.totalEarned||0);
+    const displayName = p.name || 'Игрок';
+    const initial = displayName.charAt(0).toUpperCase();
+    const avatarContent = p.photo
+      ? '<img class="lb-avatar" src="'+p.photo+'" alt="" onerror="this.outerHTML=\'<div class=lb-avatar>'+initial+'</div>\'">'
+      : '<div class="lb-avatar">'+initial+'</div>';
+
+    const item = document.createElement('div');
+    item.className = 'lb-item ' + topClass + (isMe ? ' me' : '');
+    item.innerHTML = '<div class="lb-rank">'+rankDisplay+'</div>'+avatarContent+'<div class="lb-info"><div class="lb-name">'+displayName+'</div>'+(isMe?'<div class="lb-you">Это ты!</div>':'')+'</div><div class="lb-score">🪙 '+formatNum(val)+'</div>';
+    list.appendChild(item);
+  });
+}
+
+// ==========================================
+// PROFILE
+// ==========================================
+function renderProfile() {
+  const name = getUserName(), uname = getUserUsername();
+  const photo = getUserPhoto() || 'https://ui-avatars.com/api/?name='+encodeURIComponent(name)+'&background=007aff&color=fff&size=200&bold=true';
+  document.getElementById('profile-avatar').src = photo;
+  document.getElementById('profile-name').textContent = name;
+  document.getElementById('profile-username').textContent = uname;
+  document.getElementById('p-coins').textContent = formatNum(state.coins);
+  document.getElementById('p-taps').textContent = formatNum(state.totalTaps);
+  document.getElementById('p-pertap').textContent = formatNum(state.perTap);
+  document.getElementById('p-maxe').textContent = formatNum(state.maxEnergy);
+}
+
+function shareBot() {
+  const text = '🎮 Играю в Vriska\'s Clicker!\n🪙 Уже заработал '+formatNum(state.totalEarned)+' монет!\nПрисоединяйся!';
+  if(tg) tg.openTelegramLink('https://t.me/share/url?url=https://t.me/VriskasRobot&text='+encodeURIComponent(text));
+  else if(navigator.share) navigator.share({title:"Vriska's Clicker",text,url:'https://t.me/VriskasRobot'});
+  else showToast('📋 t.me/VriskasRobot');
+}
+
+async function resetProgress() {
+  if (confirm('Точно сбросить весь прогресс? Это необратимо!')) {
+    // Удаляем из облака
+    const uid = getUserId();
+    if (allPlayers[uid]) {
+      delete allPlayers[uid];
+      syncToCloud();
+    }
+    localStorage.removeItem(SAVE_KEY);
+    state = defaultState(); saveState();
+    setClickerSkin('classic'); updateClickerUI(); renderProfile();
+    // Создаём заново
+    syncToCloud();
+    showToast('🗑 Прогресс сброшен');
+    if(tg&&tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('warning');
+  }
+}
+
+// ==========================================
+// RECALC STATS
+// ==========================================
+function recalcStats() {
+  let perTap=1,maxE=500,cps=0,regen=1;
+  coinUpgrades.forEach(item=>{
+    const lvl=state.upgrades[item.id]||0;
+    if(item.effect==='perTap')perTap+=item.effectVal*lvl;
+    if(item.effect==='maxEnergy')maxE+=item.effectVal*lvl;
+    if(item.effect==='cps')cps+=item.effectVal*lvl;
+    if(item.effect==='energyRegen')regen+=item.effectVal*lvl;
+  });
+  starUpgrades.forEach(item=>{
+    if(state.premiumUpgrades[item.id]){
+      if(item.effect==='perTapMult')perTap*=item.effectVal;
+      if(item.effect==='perTap')perTap+=item.effectVal;
+      if(item.effect==='maxEnergy')maxE+=item.effectVal;
+      if(item.effect==='cps')cps+=item.effectVal;
+      if(item.effect==='energyRegen')regen+=item.effectVal;
+    }
+  });
+  state.perTap=perTap;state.maxEnergy=maxE;state.cps=cps;state.energyRegen=regen;
+  if(state.energy>state.maxEnergy) state.energy=state.maxEnergy;
+}
+
+// ==========================================
+// INIT
+// ==========================================
+recalcStats();
+applyOffline();
+setClickerSkin(state.skin || 'classic');
+updateClickerUI();
+setSliderPos(0, false);
+
+// Подключаемся к облаку
+initDB();
+
+// Периодическая синхронизация
+setInterval(() => syncToCloud(), 30000);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') syncToCloud();
+});
+setInterval(saveState, 5000);
+</script>
+</body>
+</html>
