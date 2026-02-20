@@ -516,8 +516,10 @@ setTimeout(()=>{dbStatus.style.opacity='0';},4000);
 
 function getCloudData(){return{name:getUserName(),username:getUserUsername(),photo:getUserPhoto(),coins:S.coins,totalTaps:S.totalTaps,totalEarned:S.totalEarned,perTap:S.perTap,cps:S.cps,maxEnergy:S.maxEnergy,prestige:S.prestige||0,dailyStreak:S.dailyStreak||0,maxCombo:S.maxCombo||0,level:getLevel(),skin:S.skin||'classic',gameStars:S.gameStars||0,duelWins:S.duelWins||0,duelLosses:S.duelLosses||0,bossKills:S.bossKills||0,banned:S.banned||false,lastSync:Date.now()};}
 
-async function syncToCloud(){if(!fbReady)return;try{await db.ref('vriskas_clicker/'+getUserId()).set(getCloudData());}catch(e){}}
-async function loadFromCloud(){if(!fbReady)return;try{const s=await db.ref('vriskas_clicker/'+getUserId()).once('value');const d=s.val();if(d){if(d.banned){S.banned=true;save();showToast('🚫 Ваш аккаунт заблокирован');return;}if((d.totalEarned||0)>(S.totalEarned||0)){S.coins=d.coins||S.coins;S.totalTaps=d.totalTaps||S.totalTaps;S.totalEarned=d.totalEarned||S.totalEarned;S.perTap=d.perTap||S.perTap;S.cps=d.cps||S.cps;S.maxEnergy=d.maxEnergy||S.maxEnergy;S.prestige=d.prestige||S.prestige;S.dailyStreak=d.dailyStreak||S.dailyStreak;S.maxCombo=d.maxCombo||S.maxCombo;S.gameStars=d.gameStars||S.gameStars;S.duelWins=d.duelWins||S.duelWins;S.duelLosses=d.duelLosses||S.duelLosses;S.bossKills=d.bossKills||S.bossKills;recalcStats();save();updateAllUI();setClickerSkin(S.skin);showToast('☁️ Прогресс из облака');}}}catch(e){}}
+async function syncToCloud(){if(!fbReady||S.banned)return;try{await db.ref('vriskas_clicker/'+getUserId()).update(getCloudData());}catch(e){}}
+async function loadFromCloud(){if(!fbReady)return;try{const s=await db.ref('vriskas_clicker/'+getUserId()).once('value');const d=s.val();if(d){if(d.banned){S.banned=true;S.coins=0;S.totalTaps=0;S.totalEarned=0;S.perTap=1;S.cps=0;S.energy=0;save();showToast('🚫 Ваш аккаунт заблокирован!\nОбратитесь к администратору.');document.getElementById('click-btn').style.pointerEvents='none';document.getElementById('click-btn').style.opacity='0.3';return;}S.banned=false;if((d.totalEarned||0)>(S.totalEarned||0)){S.coins=d.coins||S.coins;S.totalTaps=d.totalTaps||S.totalTaps;S.totalEarned=d.totalEarned||S.totalEarned;S.perTap=d.perTap||S.perTap;S.cps=d.cps||S.cps;S.maxEnergy=d.maxEnergy||S.maxEnergy;S.dailyStreak=d.dailyStreak||S.dailyStreak;S.maxCombo=d.maxCombo||S.maxCombo;S.gameStars=d.gameStars||S.gameStars;S.duelWins=d.duelWins||S.duelWins;S.duelLosses=d.duelLosses||S.duelLosses;S.bossKills=d.bossKills||S.bossKills;recalcStats();save();updateAllUI();setClickerSkin(S.skin);showToast('☁️ Прогресс из облака');}}}catch(e){}}
+// Периодическая проверка бана
+setInterval(async()=>{if(!fbReady)return;try{const s=await db.ref('vriskas_clicker/'+getUserId()+'/banned').once('value');if(s.val()===true&&!S.banned){S.banned=true;S.coins=0;S.totalTaps=0;S.totalEarned=0;save();updateAllUI();showToast('🚫 Вы забанены!');document.getElementById('click-btn').style.pointerEvents='none';document.getElementById('click-btn').style.opacity='0.3';}}catch(e){}},10000);
 let syncC=0;function saveAndSync(){save();syncC++;if(syncC>=15){syncC=0;syncToCloud();}}
 
 // ========== STATE ==========
@@ -529,7 +531,22 @@ try{const s=localStorage.getItem(SAVE_KEY);if(s){const p=JSON.parse(s),d=default
 for(let v=23;v>=15;v--){try{const s=localStorage.getItem('vriskas_v'+v);if(s){const p=JSON.parse(s),d=defaultState();for(let k in d)if(!(k in p))p[k]=d[k];localStorage.removeItem('vriskas_v'+v);return p;}}catch(e){}}
 return defaultState();
 }
-function save(){S.lastTime=Date.now();localStorage.setItem(SAVE_KEY,JSON.stringify(S));}
+
+// ========== ANTI-CHEAT ==========
+const MAX_COINS=50000000000;const MAX_TAPS=100000000;const MAX_EARNED=50000000000;const MAX_PER_TAP=100000;const MAX_CPS=50000;
+function antiCheat(){
+const dominated=S.coins>MAX_COINS||S.totalTaps>MAX_TAPS||S.totalEarned>MAX_EARNED||S.perTap>MAX_PER_TAP||S.cps>MAX_CPS||S.coins<0||S.totalTaps<0||S.totalEarned<0;
+if(dominated){
+showToast('🚫 Читак обнаружен!\nВы аннулированы!');
+if(fbReady)db.ref('vriskas_clicker/'+getUserId()).remove().catch(()=>{});
+localStorage.removeItem(SAVE_KEY);S=defaultState();save();
+setClickerSkin('classic');updateAllUI();
+return true;
+}
+return false;
+}
+
+function save(){S.lastTime=Date.now();if(!antiCheat())localStorage.setItem(SAVE_KEY,JSON.stringify(S));}
 let S=loadState();
 
 // ========== LEVELS ==========
@@ -796,7 +813,7 @@ const ACHIEVEMENTS=[
 {id:'combo5',name:'Разминка',desc:'Комбо x5',icon:'🔥',check:()=>S.maxCombo>=5,reward:200},
 {id:'combo10',name:'Комбо мастер',desc:'x10',icon:'🔥',check:()=>S.maxCombo>=10,reward:500},
 {id:'combo25',name:'Комбо ас',desc:'x25',icon:'💥',check:()=>S.maxCombo>=25,reward:1500},
-{id:'combo50',name:'Комбо бог',desc:'x50',icon:'🌋',check:()=>S.maxCombo>=50,reward:5000},
+{id:'combo50',name:'Комбо бог',desc:'x50',icon:'��',check:()=>S.maxCombo>=50,reward:5000},
 {id:'combo100',name:'Комбо демон',desc:'x100',icon:'👹',check:()=>S.maxCombo>=100,reward:15000},
 {id:'skin2',name:'Модник',desc:'2 скина',icon:'🎨',check:()=>S.ownedSkins.length>=2,reward:500},
 {id:'skin5',name:'Стилист',desc:'5 скинов',icon:'👔',check:()=>S.ownedSkins.length>=5,reward:3000},
@@ -898,10 +915,8 @@ S.coins+=stolen;S.totalEarned+=stolen;S.gameStars+=stars;save();syncToCloud();up
 },'danger');
 }
 
-// ========== PRESTIGE (NERFED) ==========
-function getPrestigeBonus(){return Math.min(Math.floor(S.totalEarned/100000),50);}
-function renderPrestige(){const c=document.getElementById('prestige-container');const b=getPrestigeBonus();c.innerHTML='<div class="prestige-section'+(b>0?'':' disabled')+'" onclick="'+(b>0?'doPrestige()':'')+'"><div class="prestige-title">💎 Престиж</div><div class="prestige-desc">Сбрось за множитель (макс +50%)</div><div class="prestige-info">+'+b+'%'+(S.prestige>0?' • Текущий: x'+(S.prestigeMultiplier||1).toFixed(2):'')+'</div></div>';}
-function doPrestige(){const b=getPrestigeBonus();if(b<=0)return;showModal('💎 Престиж','Сбрось за +'+b+'% множитель?\nЗвёзды и скины сохранятся!\nМакс бонус: +50%','Престиж!',()=>{S.prestige++;S.prestigeMultiplier=Math.min((S.prestigeMultiplier||1)+b/100,3.0);S.coins=0;S.totalTaps=0;S.totalEarned=0;S.energy=500;S.maxEnergy=500;S.perTap=1;S.cps=0;S.energyRegen=1;S.upgrades={};S.maxCombo=0;S.levelRewards={};recalcStats();save();syncToCloud();setClickerSkin(S.skin);updateAllUI();renderPrestige();checkAchievements();showToast('💎 Престиж #'+S.prestige+'!\nx'+(S.prestigeMultiplier).toFixed(2));closeModal();},'danger');}
+// ========== PRESTIGE REMOVED ==========
+function renderPrestige(){document.getElementById('prestige-container').innerHTML='';}
 
 // ========== BILLION ==========
 function renderBillion(){const c=document.getElementById('billion-container');if(S.billionClaimed){c.innerHTML='<div class="billion-btn disabled"><div class="billion-title">✅ Миллиардер!</div></div>';return;}const can=S.coins>=1000000000;c.innerHTML='<div class="billion-btn'+(can?'':' disabled')+'" onclick="'+(can?'claimBillion()':'')+'"><div class="billion-title">💰 Стать миллиардером</div><div class="billion-desc">1,000,000,000 → получи обратно + титул!</div></div>';}
@@ -933,7 +948,7 @@ function doClick(e){
 if(S.banned){showToast('🚫 Аккаунт заблокирован');return;}
 if(S.energy<=0){showToast('⚡ Нет энергии!');return;}
 doCombo();
-let mult=getComboMult()*(S.prestigeMultiplier||1);
+let mult=getComboMult();
 if(activeEvent&&activeEvent.mult)mult*=activeEvent.mult;
 if(doubleActive)mult*=2;
 if((S.upgrades.luck1||0)>0&&Math.random()*100<(S.upgrades.luck1)*5)mult*=3;
@@ -967,7 +982,7 @@ const bb=document.getElementById('boost-badges');const bs=[];
 if(doubleActive)bs.push('x2 Монеты');
 if(activeEvent)bs.push(activeEvent.name);
 if(S.cps>0)bs.push(formatNum(S.cps)+'/с');
-if((S.prestigeMultiplier||1)>1)bs.push('x'+(S.prestigeMultiplier).toFixed(2));
+
 if(S.billionClaimed)bs.push('💰 Миллиардер');
 if(S.gameStars>0)bs.push('⭐'+S.gameStars);
 bb.innerHTML=bs.map(b=>'<span class="boost-badge">'+b+'</span>').join('');
@@ -977,7 +992,7 @@ bb.innerHTML=bs.map(b=>'<span class="boost-badge">'+b+'</span>').join('');
 let starGenT=0;
 setInterval(()=>{
 if(S.energy<S.maxEnergy)S.energy=Math.min(S.energy+S.energyRegen,S.maxEnergy);
-if(S.cps>0){const e=Math.floor(S.cps*(S.prestigeMultiplier||1));S.coins+=e;S.totalEarned+=e;}
+if(S.cps>0){S.coins+=S.cps;S.totalEarned+=S.cps;}
 starGenT++;if((S.upgrades.star_gen||0)>0&&starGenT>=60){starGenT=0;S.gameStars+=S.upgrades.star_gen;}
 checkLevelRewards();updateAllUI();save();
 },1000);
@@ -1123,7 +1138,7 @@ document.getElementById('profile-avatar').src=photo;
 document.getElementById('profile-name').textContent=name;
 document.getElementById('profile-username').textContent=uname?'@'+uname:'';
 document.getElementById('profile-level-text').textContent='⭐ Уровень '+getLevel()+' — '+getLevelData().name;
-const stats=[{icon:'🪙',val:formatNum(S.coins),lbl:'Монеты'},{icon:'👆',val:formatNum(S.totalTaps),lbl:'Тапов'},{icon:'💰',val:formatNum(S.totalEarned),lbl:'Заработано'},{icon:'⚡',val:formatNum(S.perTap),lbl:'За тап'},{icon:'🔋',val:formatNum(S.maxEnergy),lbl:'Энергия'},{icon:'📈',val:formatNum(S.cps),lbl:'В сек'},{icon:'💎',val:S.prestige||0,lbl:'Престиж'},{icon:'🔥',val:S.dailyStreak||0,lbl:'Дней'},{icon:'⭐',val:S.gameStars||0,lbl:'Звёзды'},{icon:'⚔️',val:S.duelWins||0,lbl:'Победы'},{icon:'👹',val:S.bossKills||0,lbl:'Боссы'},{icon:'🌟',val:S.goldenCoins||0,lbl:'Золотые'}];
+const stats=[{icon:'🪙',val:formatNum(S.coins),lbl:'Монеты'},{icon:'👆',val:formatNum(S.totalTaps),lbl:'Тапов'},{icon:'💰',val:formatNum(S.totalEarned),lbl:'Заработано'},{icon:'⚡',val:formatNum(S.perTap),lbl:'За тап'},{icon:'🔋',val:formatNum(S.maxEnergy),lbl:'Энергия'},{icon:'📈',val:formatNum(S.cps),lbl:'В сек'},{icon:'🔥',val:S.dailyStreak||0,lbl:'Дней'},{icon:'⭐',val:S.gameStars||0,lbl:'Звёзды'},{icon:'⚔️',val:S.duelWins||0,lbl:'Победы'},{icon:'👹',val:S.bossKills||0,lbl:'Боссы'},{icon:'🌟',val:S.goldenCoins||0,lbl:'Золотые'},{icon:'🏆',val:getLevel(),lbl:'Уровень'}];
 document.getElementById('profile-stats-grid').innerHTML=stats.map(s=>'<div class="profile-stat"><div class="p-icon">'+s.icon+'</div><div class="p-val">'+s.val+'</div><div class="p-lbl">'+s.lbl+'</div></div>').join('');
 renderPrestige();renderBillion();renderAdmin();
 }
@@ -1178,7 +1193,16 @@ aLog('📋 Игроков: '+count);
 
 async function aBanPlayer(uid,ban){
 if(!fbReady)return;
-try{await db.ref('vriskas_clicker/'+uid+'/banned').set(ban);aLog((ban?'🚫 Забанен':'🔓 Разбанен')+': '+uid.substr(0,8));aListPlayers();}catch(e){aLog('❌ '+e.message);}
+try{
+if(ban){
+await db.ref('vriskas_clicker/'+uid).update({banned:true,coins:0,totalTaps:0,totalEarned:0,perTap:1,cps:0});
+aLog('🚫 ЗАБАНЕН + обнулён: '+uid.substr(0,8));
+}else{
+await db.ref('vriskas_clicker/'+uid+'/banned').set(false);
+aLog('🔓 Разбанен: '+uid.substr(0,8));
+}
+aListPlayers();
+}catch(e){aLog('❌ '+e.message);}
 }
 
 async function aDeletePlayer(uid){
